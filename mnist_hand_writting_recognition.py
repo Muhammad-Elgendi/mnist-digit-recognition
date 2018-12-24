@@ -1,6 +1,8 @@
 import numpy
 import scipy.special
+import scipy.ndimage
 import matplotlib.pyplot
+import imageio
 
 class artificialNeuralNetwork :
     def __init__(self,inputNodes,hiddenNodes,outputNodes,learningRate):
@@ -8,7 +10,7 @@ class artificialNeuralNetwork :
         self.hiddenNodes = hiddenNodes
         self.outputNodes = outputNodes
         self.learningRate = learningRate   
-        self.activationFunction = lambda x : scipy.special.expit(x)     
+        self.activationFunction = lambda x : scipy.special.expit(x)    
         #● A matrix for the weights for links between the input and hidden layers,
         #  W​ input_hidden​ , of size (​ hidden_nodes​ by input_nodes)​. 
         #● And another matrix for the links between the hidden and output layers,
@@ -38,7 +40,8 @@ class artificialNeuralNetwork :
 
         output_errors = targets - final_outputs
         #errors​ hidden​ = weights​ Transpose​ hidden_output​ ∙ errors​ output
-        hidden_errors = numpy.dot(self.weightsHiddenOutput.T, output_errors)  
+        hidden_errors = numpy.dot(self.weightsHiddenOutput.T, output_errors) 
+
         # update the weights for the links between the hidden and output layers 
         # the matrix of outputs from the previous layer, is transposed.
         # In effect this means the column of outputs becomes a row of outputs.
@@ -92,9 +95,26 @@ for epoch in range(epochs):
         # create the target output values (all 0.01, except the desired label which is 0.99)
         targets = numpy.zeros(outputNodes) + 0.01
         # raw_values[0] is the target label for this record
-        targets[int(raw_values[0])] =0.99
+        targets[(raw_values[0])] =0.99
+
+        # e.g for 3 --> 0.01 0.01 0.01 0.99 0.01 0.01  0.01 0.01  0.01 0.01
 
         network.train(scaled_inputs, targets)
+
+        # create rotated variations
+        # rotated anticlockwise by x degrees
+        #cval : scalar, optional
+            #Value used for points outside the boundaries of the input if mode='constant'. Default is 0.0
+        #order : int, optional
+            #The order of the spline interpolation, default is 3. The order has to be in the range 0-5.
+        #reshape : bool, optional
+            #If reshape is true, the output shape is adapted so that the input array is contained completely in the output. Default is True.
+        inputs_plusx_img = scipy.ndimage.interpolation.rotate(scaled_inputs.reshape(28,28), 10, cval=0.01, order=1, reshape=False)
+        network.train(inputs_plusx_img.reshape(784), targets)
+
+        # rotated clockwise by x degrees
+        inputs_minusx_img = scipy.ndimage.interpolation.rotate(scaled_inputs.reshape(28,28), -10, cval=0.01, order=1, reshape=False)
+        network.train(inputs_minusx_img.reshape(784), targets)
 
 # load the mnist test data CSV file into a list
 test_set = loadDataList('/media/muhammad/disk/MachineLearning/mnist_test.csv')
@@ -129,3 +149,23 @@ for record in test_set:
 # calculate the performance score, the fraction of correct answers
 performance_array = numpy.asarray(performance)
 print ("Accuracy = ", performance_array.sum() / performance_array.size)
+
+# test the neural network with my own images
+
+# load image data from png files into an array
+print ("loading ... 2828_my_own_6.png")
+img_array = imageio.imread('2828_my_own_6.png', as_gray=True)
+    
+# reshape from 28x28 to list of 784 values, invert values
+img_data  = 255.0 - img_array.reshape(784)
+    
+# then scale data to range from 0.01 to 1.0
+img_data = (img_data / 255.0 * 0.99) + 0.01
+
+# query the network
+outputs = network.query(img_data)
+print (outputs)
+
+# the index of the highest value corresponds to the label
+label = numpy.argmax(outputs)
+print("network output ", label)
